@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rymo — Banco de Horas</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#f0f0f0;min-height:100vh}
+:root{--rb:#0a0a0a;--rs:#141414;--rc:#1a1a1a;--rd:#2a2a2a;--ry:#F5C518;--ryd:#c9a010;--rr:#e05252;--rt:#f0f0f0;--rm:#888;--rg:#6dbf6d;--br:8px}
+.topbar{background:var(--rs);border-bottom:1px solid var(--rd);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;position:sticky;top:0;z-index:100}
+.topbar-left{display:flex;align-items:center;gap:12px}
+.logo-circle{width:34px;height:34px;border:2px solid var(--ry);border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.logo-circle svg{width:16px;height:16px;stroke:var(--ry);fill:none;stroke-width:2}
+.brand-name{font-size:16px;font-weight:600;color:var(--rt)}
+.brand-sub{font-size:11px;color:var(--ry)}
+.tabs{display:flex;gap:4px}
+.tab{padding:7px 18px;border-radius:20px;font-size:12px;cursor:pointer;border:1px solid var(--rd);color:var(--rm);background:transparent;transition:all .2s;white-space:nowrap}
+.tab.active{background:var(--ry);color:#000;border-color:var(--ry);font-weight:600}
+.content{padding:24px;max-width:1400px;margin:0 auto}
+.page{display:none}.page.active{display:block}
+
+/* Upload */
+.upload-section{display:flex;align-items:center;gap:14px;margin-bottom:18px;background:var(--rs);border:1px solid var(--rd);border-radius:var(--br);padding:14px 18px;flex-wrap:wrap}
+.upload-label{font-size:12px;color:var(--rm);flex-shrink:0}
+.upload-zone{position:relative;display:inline-flex;align-items:center;gap:8px;background:var(--rc);border:1px solid var(--rd);border-radius:var(--br);padding:8px 14px;cursor:pointer;transition:border-color .2s;font-size:12px;color:var(--rt)}
+.upload-zone:hover{border-color:var(--ry);color:var(--ry)}
+.upload-zone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.upload-badge{display:inline-flex;align-items:center;gap:5px;background:#1e2a1e;border:1px solid #2d4a2d;color:var(--rg);padding:4px 12px;border-radius:20px;font-size:11px}
+.vdiv{width:1px;height:24px;background:var(--rd);flex-shrink:0}
+.periodo{font-size:11px;color:var(--rm)}.periodo span{color:var(--ry);font-weight:600}
+.btn-sm{background:transparent;color:var(--rm);border:1px solid var(--rd);padding:7px 12px;border-radius:var(--br);font-size:11px;cursor:pointer;white-space:nowrap;transition:all .2s}
+.btn-sm:hover{border-color:var(--ry);color:var(--ry)}
+
+/* KPIs */
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:18px}
+.kpi{background:var(--rc);border:1px solid var(--rd);border-radius:var(--br);padding:13px 15px}
+.kpi-label{font-size:10px;color:var(--rm);text-transform:uppercase;letter-spacing:.8px;margin-bottom:5px}
+.kpi-value{font-size:20px;font-weight:600;color:var(--rt)}
+.kpi-value.y{color:var(--ry)}.kpi-value.r{color:var(--rr)}.kpi-value.g{color:var(--rg)}
+
+/* Filter */
+.filter-row{display:flex;gap:10px;margin-bottom:14px;align-items:center;flex-wrap:wrap}
+.filter-label{font-size:11px;color:var(--rm)}
+.filter-select{background:var(--rs);border:1px solid var(--rd);color:var(--rt);padding:7px 10px;border-radius:var(--br);font-size:12px;cursor:pointer}
+.filter-select:focus{outline:none;border-color:var(--ry)}
+
+/* Chart */
+.chart-card{background:var(--rc);border:1px solid var(--rd);border-radius:var(--br);padding:16px;margin-bottom:16px}
+.chart-title{font-size:10px;color:var(--rm);margin-bottom:12px;text-transform:uppercase;letter-spacing:.8px;display:flex;justify-content:space-between;align-items:center}
+.legend-row{display:flex;gap:14px;font-size:10px;color:var(--rm)}
+.ld{width:8px;height:8px;border-radius:2px;display:inline-block;margin-right:3px;vertical-align:middle}
+
+/* Tops */
+.tops-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.top-card{background:var(--rc);border:1px solid var(--rd);border-radius:var(--br);padding:14px}
+.top-card-title{font-size:10px;color:var(--rm);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px}
+.top-item{display:flex;align-items:center;gap:7px;padding:5px 0;border-bottom:1px solid var(--rd)}
+.top-item:last-child{border-bottom:none}
+.top-rank{font-size:10px;color:var(--rm);width:16px;text-align:right;flex-shrink:0}
+.top-name{font-size:12px;color:var(--rt);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.top-setor{font-size:10px;color:var(--rm);flex-shrink:0;max-width:75px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.top-val{font-size:11px;font-weight:600;flex-shrink:0}
+.tv-p{color:var(--ry)}.tv-n{color:var(--rr)}.tv-c{color:var(--rg)}
+
+/* No match */
+.no-match{background:var(--rc);border:1px solid #3a2a10;border-radius:var(--br);padding:10px 14px;font-size:11px;color:#c8a060;margin-bottom:16px;display:none}
+.no-match ul{margin:6px 0 0 16px;line-height:1.9}
+
+/* Empty */
+.empty-state{text-align:center;padding:40px 20px;color:var(--rm);font-size:13px}
+
+/* Status bar */
+.status-bar{background:var(--rs);border-top:1px solid var(--rd);padding:8px 24px;font-size:10px;color:var(--rm);display:flex;gap:18px;flex-wrap:wrap;position:sticky;bottom:0}
+
+/* ===== CADASTRO ===== */
+.cad-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px}
+.cad-title{font-size:14px;font-weight:600;color:var(--rt)}
+.cad-count{font-size:11px;color:var(--rm);background:var(--rc);border:1px solid var(--rd);padding:4px 12px;border-radius:20px}
+.btn-add{background:var(--ry);color:#000;border:none;padding:9px 18px;border-radius:var(--br);font-size:12px;font-weight:600;cursor:pointer;transition:background .2s}
+.btn-add:hover{background:var(--ryd)}
+.search-bar{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+.search-input{flex:1;min-width:200px;background:var(--rs);border:1px solid var(--rd);color:var(--rt);padding:8px 12px;border-radius:var(--br);font-size:13px}
+.search-input::placeholder{color:var(--rm)}
+.search-input:focus{outline:none;border-color:var(--ry)}
+.search-select{background:var(--rs);border:1px solid var(--rd);color:var(--rt);padding:8px 10px;border-radius:var(--br);font-size:12px;cursor:pointer}
+.cad-table{width:100%;border-collapse:collapse}
+.cad-table th{font-size:10px;color:var(--rm);text-transform:uppercase;letter-spacing:.8px;padding:8px 12px;border-bottom:1px solid var(--rd);text-align:left}
+.cad-table td{font-size:12px;color:var(--rt);padding:10px 12px;border-bottom:1px solid #1e1e1e}
+.cad-table tr:hover td{background:#1f1f1f}
+.cad-table .td-sal{color:var(--ry);font-weight:500}
+.cad-table .td-set{font-size:11px;color:var(--rm);background:var(--rd);padding:2px 8px;border-radius:10px;white-space:nowrap}
+.btn-edit{background:transparent;border:1px solid var(--rd);color:var(--rm);padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer;transition:all .2s}
+.btn-edit:hover{border-color:var(--ry);color:var(--ry)}
+.btn-del{background:transparent;border:1px solid var(--rd);color:var(--rm);padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer;transition:all .2s;margin-left:4px}
+.btn-del:hover{border-color:var(--rr);color:var(--rr)}
+
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;z-index:1000;display:none}
+.modal-overlay.open{display:flex}
+.modal{background:var(--rs);border:1px solid var(--rd);border-radius:var(--br);padding:24px;width:100%;max-width:420px}
+.modal-title{font-size:14px;font-weight:600;color:var(--rt);margin-bottom:18px}
+.form-group{margin-bottom:14px}
+.form-label{font-size:11px;color:var(--rm);text-transform:uppercase;letter-spacing:.6px;margin-bottom:5px;display:block}
+.form-input{width:100%;background:var(--rc);border:1px solid var(--rd);color:var(--rt);padding:9px 12px;border-radius:var(--br);font-size:13px}
+.form-input:focus{outline:none;border-color:var(--ry)}
+.form-input.error{border-color:var(--rr)}
+.form-err{font-size:11px;color:var(--rr);margin-top:3px;display:none}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+.btn-cancel{background:transparent;border:1px solid var(--rd);color:var(--rm);padding:9px 18px;border-radius:var(--br);font-size:12px;cursor:pointer}
+.btn-cancel:hover{border-color:var(--rm)}
+.btn-save{background:var(--ry);color:#000;border:none;padding:9px 18px;border-radius:var(--br);font-size:12px;font-weight:600;cursor:pointer}
+.btn-save:hover{background:var(--ryd)}
+.toast{position:fixed;bottom:60px;right:24px;background:#1e2a1e;border:1px solid #2d4a2d;color:var(--rg);padding:10px 18px;border-radius:var(--br);font-size:12px;z-index:2000;opacity:0;transition:opacity .3s;pointer-events:none}
+.toast.show{opacity:1}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="logo-circle"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="12" y1="3" x2="12" y2="21"/><line x1="3" y1="12" x2="21" y2="12"/></svg></div>
+    <div><div class="brand-name">Rymo</div><div class="brand-sub">Dashboard Banco de Horas</div></div>
+  </div>
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('p1',this)">Dashboard</button>
+    <button class="tab" onclick="switchTab('p2',this)">Tops & Custo</button>
+    <button class="tab" onclick="switchTab('p3',this)">Cadastro</button>
+  </div>
+</div>
+
+<div class="content">
+  <div class="upload-section">
+    <span class="upload-label">📄 PDF do sistema:</span>
+    <div class="upload-zone">
+      <input type="file" accept=".pdf" onchange="handlePDF(this)">
+      <span id="uploadLabel">Selecionar extrato...</span>
+    </div>
+    <div id="uploadBadge" style="display:none" class="upload-badge">✓ <span id="uploadBadgeText"></span></div>
+    <div class="vdiv"></div>
+    <div class="periodo">Período: <span id="periodoLabel">—</span></div>
+    <div class="vdiv"></div>
+    <button class="btn-sm" onclick="loadDemo()">▶ Demo</button>
+  </div>
+
+  <div id="noMatchBox" class="no-match">
+    <strong style="color:#e8b870">⚠ Sem cadastro na base (custo não calculado):</strong>
+    <ul id="noMatchList"></ul>
+  </div>
+
+  <!-- PAGE 1: Dashboard -->
+  <div class="page active" id="p1">
+    <div class="kpi-row">
+      <div class="kpi"><div class="kpi-label">Total no PDF</div><div class="kpi-value y" id="kFuncs">—</div></div>
+      <div class="kpi"><div class="kpi-label">Saldo positivo</div><div class="kpi-value g" id="kPos">—</div></div>
+      <div class="kpi"><div class="kpi-label">Saldo negativo</div><div class="kpi-value r" id="kNeg">—</div></div>
+      <div class="kpi"><div class="kpi-label">Custo banco positivo</div><div class="kpi-value y" id="kCPos">—</div></div>
+      <div class="kpi"><div class="kpi-label">Custo banco negativo</div><div class="kpi-value r" id="kCNeg">—</div></div>
+      <div class="kpi"><div class="kpi-label">Saldo de custo (pos - neg)</div><div class="kpi-value y" id="kCTotal">—</div></div>
+    </div>
+    <div class="filter-row">
+      <span class="filter-label">Setor:</span>
+      <select class="filter-select" id="setorFilter" onchange="renderChart()"><option value="">Todos</option></select>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">
+        <span>Saldo de banco de horas por funcionário</span>
+        <div class="legend-row"><span><span class="ld" style="background:#F5C518"></span>Positivo</span><span><span class="ld" style="background:#e05252"></span>Negativo</span></div>
+      </div>
+      <div id="chartWrap" style="position:relative;width:100%;height:320px">
+        <div class="empty-state">Carregue o PDF para visualizar</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PAGE 2: Tops & Custo -->
+  <div class="page" id="p2">
+    <div class="kpi-row">
+      <div class="kpi"><div class="kpi-label">Saldo de custo (pos - neg)</div><div class="kpi-value y" id="kCTotal2">—</div></div>
+      <div class="kpi"><div class="kpi-label">Maior banco positivo</div><div class="kpi-value g" id="kMaxP">—</div></div>
+      <div class="kpi"><div class="kpi-label">Maior banco negativo</div><div class="kpi-value r" id="kMaxN">—</div></div>
+    </div>
+    <div class="tops-grid" id="topsGrid">
+      <div class="top-card"><div class="top-card-title">Top 10 — bancos positivos</div><div class="empty-state" style="padding:20px 0">Sem dados</div></div>
+      <div class="top-card"><div class="top-card-title">Top 10 — bancos negativos</div><div class="empty-state" style="padding:20px 0">Sem dados</div></div>
+      <div class="top-card"><div class="top-card-title">Top 10 — maiores custos</div><div class="empty-state" style="padding:20px 0">Sem dados</div></div>
+    </div>
+  </div>
+
+  <!-- PAGE 3: Cadastro -->
+  <div class="page" id="p3">
+    <div class="cad-header">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div class="cad-title">Base de Funcionários</div>
+        <div class="cad-count" id="cadCount">0 funcionários</div>
+      </div>
+      <button class="btn-add" onclick="openModal()">+ Adicionar funcionário</button>
+    </div>
+    <div class="search-bar">
+      <input class="search-input" type="text" id="searchInput" placeholder="Buscar por nome..." oninput="renderTabela()">
+      <select class="search-select" id="searchSetor" onchange="renderTabela()">
+        <option value="">Todos os setores</option>
+      </select>
+    </div>
+    <div style="overflow-x:auto">
+      <table class="cad-table">
+        <thead><tr><th>Nome</th><th>Setor</th><th>Salário Base</th><th>Ações</th></tr></thead>
+        <tbody id="cadTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="status-bar">
+  <span id="stPDF">📄 PDF: aguardando</span>
+  <span id="stBase">🗄 Base: carregando...</span>
+  <span id="stReg">Cruzados: —</span>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <div class="modal-title" id="modalTitle">Adicionar funcionário</div>
+    <div class="form-group">
+      <label class="form-label">Nome completo</label>
+      <input class="form-input" id="fNome" type="text" placeholder="NOME COMPLETO EM MAIÚSCULAS">
+      <div class="form-err" id="errNome">Nome obrigatório</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Setor</label>
+      <input class="form-input" id="fSetor" type="text" placeholder="Ex: ESTOQUE" list="setorList">
+      <datalist id="setorList"></datalist>
+      <div class="form-err" id="errSetor">Setor obrigatório</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Salário base (R$)</label>
+      <input class="form-input" id="fSalario" type="number" step="0.01" placeholder="1650.00">
+      <div class="form-err" id="errSalario">Salário obrigatório</div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
+      <button class="btn-save" onclick="salvarFuncionario()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+// ===== BASE INICIAL =====
+const BASE_INICIAL = [{"nome":"ADAILSON JATAI VALES","setor":"LOJA","salario":1650},{"nome":"ADILSON AMUD DA SILVA","setor":"EXPEDIÇÃO","salario":2240.21},{"nome":"ADRIANE CRISTINE PEREIRA GOMES","setor":"ESTOQUE","salario":1935.45},{"nome":"ADRIANO DE SOUZA SANTOS","setor":"ESTOQUE","salario":2459.71},{"nome":"ADRIANO SILVA DE SOUZA","setor":"EXPEDIÇÃO","salario":1976.73},{"nome":"ALFREDO DE OLIVEIRA ALMEIDA","setor":"DIRETORIA COMERCIAL","salario":3000},{"nome":"ANA CAROLINA LIMA RODRIGUES","setor":"LOJA","salario":1815},{"nome":"ANDERSON MOREIRA MARTINS","setor":"TECNOLOGIA DA INFORMAÇÃO","salario":2070},{"nome":"ANDRE LUCIO OLIVEIRA TEIXEIRA","setor":"EXPEDIÇÃO","salario":2847.67},{"nome":"BREHMER DE OLIVEIRA SOUZA","setor":"LOJA","salario":2587.5},{"nome":"BRENDA FERREIRA FARIAS","setor":"COMERCIAL","salario":1863},{"nome":"BRENDA ZURIEL DE SOUSA BATISTA","setor":"LOJA","salario":1650},{"nome":"BRUNA NAIARA SILVA DE OLIVEIRA","setor":"EXPEDIÇÃO","salario":1759.5},{"nome":"CAMILLE VITORIA BRAGA DE AQUINO CONDE","setor":"LOJA","salario":1650},{"nome":"CARLOS FELIPE PIMENTEL DA SILVA","setor":"ESTOQUE","salario":1811.25},{"nome":"CHRISTIAN FELIPE DE ASSIS SOUZA","setor":"TECNOLOGIA DA INFORMAÇÃO","salario":1800},{"nome":"CLAUDEMIR FERREIRA GOMES JUNIOR","setor":"COMERCIAL","salario":1650},{"nome":"CREUZA DE AGUIAR CORREA","setor":"ADMINISTRATIVO","salario":2515.5},{"nome":"CRISTIANO BRILHANTE DE MEDEIROS","setor":"ESTOQUE","salario":1863},{"nome":"DANIEL CALEBE FERNANDES GUIMARAES MELO","setor":"COMERCIAL","salario":4000},{"nome":"DANIEL CHAVES MONTEIRO","setor":"ESTOQUE","salario":2252.23},{"nome":"DANIEL LIMA ALENCAR","setor":"ESTAGIO/APRENDIZ","salario":810.5},{"nome":"DANIELE BENTES FAIANCA","setor":"LOJA","salario":1650},{"nome":"DAVI ARAUJO COSTA","setor":"LOJA","salario":1650},{"nome":"DAVI IRAN BARBOZA GAMA","setor":"ESTAGIO/APRENDIZ","salario":810.5},{"nome":"DOMINGOS TRINDADE DE LIMA JUNIOR","setor":"EXPEDIÇÃO","salario":2847.67},{"nome":"EDUARDO RIBEIRO DA SILVA","setor":"EXPEDIÇÃO","salario":1650},{"nome":"ELIAS RODRIGUES","setor":"EXPEDIÇÃO","salario":1650},{"nome":"ELIELSO TAVARES ALCANTARA","setor":"ESTOQUE","salario":2587.5},{"nome":"ELIENE XAVIER DE MEDEIROS","setor":"ADMINISTRATIVO","salario":1650},{"nome":"ELIETE FERNANDES SIPRIANO","setor":"ADMINISTRATIVO","salario":1650},{"nome":"ELISSAMA BEATRIZ RODRIGUES BATISTA","setor":"ADMINISTRATIVO","salario":2070},{"nome":"ELITON ALBUQUERQUE GOES","setor":"EXPEDIÇÃO","salario":1707.75},{"nome":"ERIKA CRUZ GUIMARAES","setor":"COMERCIAL","salario":1650},{"nome":"ESTEFANE DA COSTA GOMES","setor":"ADMINISTRATIVO","salario":7200},{"nome":"EUZA SOPHIA LIMA ITALIANO","setor":"ESTAGIO/APRENDIZ","salario":900},{"nome":"FABIO NASCIMENTO DE MORAES","setor":"EXPEDIÇÃO","salario":1650},{"nome":"FERNANDA CASTRO MARTINS","setor":"COMERCIAL","salario":1650},{"nome":"FLAVIA JANINE MONTEIRO","setor":"COMERCIAL","salario":1650},{"nome":"FRANCIONE BARBOSA COITINHO","setor":"ESTOQUE","salario":2466.39},{"nome":"FRANK DA SILVA GOMES","setor":"COMPRAS","salario":2380.5},{"nome":"FRANKLIN DA SILVA MEDEIROS","setor":"EXPEDIÇÃO","salario":1650},{"nome":"GABRIEL FERNANDO CASTRO DA COSTA","setor":"ESTOQUE","salario":1811.25},{"nome":"GEORGE NEY DA SILVA SALAZAR","setor":"ESTOQUE","salario":2997.34},{"nome":"GIOVANA TRINDADE DA COSTA","setor":"COMERCIAL","salario":2070},{"nome":"GIOVANNA SILVA NEGRAO","setor":"LOJA","salario":1650},{"nome":"GLENDA ESTER BATISTA BRELAZ","setor":"ADMINISTRATIVO","salario":2622},{"nome":"GUILHERME DA ROCHA GONCALVES","setor":"ADMINISTRATIVO","salario":2380.5},{"nome":"GUILHERME LUIZ TRINDADE LEDA CORREA","setor":"ESTAGIO/APRENDIZ","salario":810.5},{"nome":"HELIO EDMUNDO DE FREITAS SILVA","setor":"ADMINISTRATIVO","salario":2070},{"nome":"HENRY DA COSTA ARAUJO","setor":"EXPEDIÇÃO","salario":2970.83},{"nome":"HUMBERTO BRANDAO FERNANDES FILHO","setor":"EXPEDIÇÃO","salario":2016.18},{"nome":"INDRIGO AUGUSTO ALVES FEITOSA","setor":"LOJA","salario":1650},{"nome":"ISABELLY HELBING CRUZ","setor":"ESTAGIO/APRENDIZ","salario":1100},{"nome":"IVAN PEREIRA DANTAS","setor":"LOJA","salario":2274.05},{"nome":"IVANDRO GARCIA DE MOURA","setor":"ESTOQUE","salario":2240.21},{"nome":"JAISSON JATAI VALES","setor":"ESTOQUE","salario":2086.06},{"nome":"JANDSON ALVES ROLIM","setor":"ESTOQUE","salario":1707.75},{"nome":"JEANE PARENTE DE CASTRO","setor":"ADMINISTRATIVO","salario":2540.52},{"nome":"JEFF CRUZAL AMAZONAS","setor":"ESTOQUE","salario":2906.28},{"nome":"JEFFERSON CARNEIRO GUIMARAES","setor":"LOJA","salario":1650},{"nome":"JESSE HENRIQUES XAVIER","setor":"LOJA","salario":1650},{"nome":"JESSICA PRISCYLLA CRUZ DE MEDEIROS","setor":"LOJA","salario":1815},{"nome":"JOAO LUIZ TEIXEIRA DA SILVA","setor":"EXPEDIÇÃO","salario":1650},{"nome":"JOAO VITOR DE LIMA CARVALHO","setor":"LOJA","salario":1800},{"nome":"JULIO CESAR FONSECA FERREIRA","setor":"ESTOQUE","salario":1650},{"nome":"KAIO SILVA OLIVEIRA","setor":"ESTOQUE","salario":1811.25},{"nome":"KAUA MARQUES SEIXAS","setor":"ADMINISTRATIVO","salario":3105},{"nome":"KEITIANE CABRAL FIGUEIREDO","setor":"COMERCIAL","salario":1650},{"nome":"KELVIN ANDERSON PINHEIRO LINS","setor":"ESTOQUE","salario":1650},{"nome":"KENNED DOS SANTOS E SANTOS","setor":"ESTOQUE","salario":2516.93},{"nome":"LAISA MARIA CARDOSO DA SILVA","setor":"COMERCIAL","salario":1650},{"nome":"LAURA DA SILVA RODRIGUES","setor":"ESTAGIO/APRENDIZ","salario":900},{"nome":"LEANDRO SILVA DOS REIS","setor":"EXPEDIÇÃO","salario":2031.56},{"nome":"LEONARDO MARTINS DE SOUSA","setor":"ESTOQUE","salario":1650},{"nome":"LEONARDO OLIVEIRA DUTRA DA COSTA","setor":"ADMINISTRATIVO","salario":2070},{"nome":"LIA DE MACEDO GONCALVES ALBUQUERQUE MARINHEIRO","setor":"ESTAGIO/APRENDIZ","salario":900},{"nome":"LUCAS ELSON NEVES DE ALMEIDA","setor":"ESTOQUE","salario":1800},{"nome":"LUCAS OLIVEIRA DA SILVA","setor":"ESTOQUE","salario":1650},{"nome":"LUCIANA APARECIDA BASTOS ALBUQUERQUE","setor":"LOJA","salario":4016.7},{"nome":"LUIZ CARLOS SILVA DE OLIVEIRA","setor":"ESTOQUE","salario":810.5},{"nome":"LUIZ MATHEUS DOS SANTOS REDMAN","setor":"ESTOQUE","salario":1707.75},{"nome":"MARCELO COELHO GUEDES JUNIOR","setor":"ESTOQUE","salario":2418.17},{"nome":"MARCOS PAULO LIMA DE VASCONCELOS","setor":"EXPEDIÇÃO","salario":1650},{"nome":"MARCUS VINICIUS CARDOSO DE SENA","setor":"EXPEDIÇÃO","salario":1650},{"nome":"MARIA DO SOCORRO PERPETUO LIRA DA COSTA","setor":"ADMINISTRATIVO","salario":1650},{"nome":"MARIA EDUARDA FREITAS ROCHA","setor":"ESTAGIO/APRENDIZ","salario":810.5},{"nome":"MATHEUS JOSE OLIVEIRA NOGUEIRA","setor":"ADMINISTRATIVO","salario":2070},{"nome":"MAURICIO DOS SANTOS ALMEIDA","setor":"ESTAGIO/APRENDIZ","salario":1100},{"nome":"MIRELA RODRIGUES SILVA","setor":"ESTOQUE","salario":1759.5},{"nome":"MOISES VINICIUS ALBUQUERQUE ALENCAR","setor":"ESTOQUE","salario":1811.25},{"nome":"NATA ARAUJO DE LIMA CARDOSO","setor":"EXPEDIÇÃO","salario":1650},{"nome":"NAYENLIS KATERIN MALAVE ACEVEDO","setor":"COMERCIAL","salario":1650},{"nome":"OLISMAR NASCIMENTO PEREIRA","setor":"ESTOQUE","salario":1811.25},{"nome":"PAULO JUNIO COSTA DA SILVA","setor":"ESTOQUE","salario":1976.27},{"nome":"RAFAEL DA SILVA DE CASTRO","setor":"EXPEDIÇÃO","salario":2031.56},{"nome":"RAIMUNDO MOTA DO NASCIMENTO","setor":"ESTOQUE","salario":1650},{"nome":"RENATA LARISSA BARROSO NEVES","setor":"COMERCIAL","salario":1650},{"nome":"RENATO AUGUSTO ALMEIDA DE SOUZA","setor":"COMERCIAL","salario":1650},{"nome":"RODRIGO MILLER DO NASCIMENTO","setor":"COMPRAS","salario":4140},{"nome":"RUBENS CHAVES CORREA MEIRELES","setor":"MARKETING","salario":1914.75},{"nome":"SABRINA DOLORES SANTOS CESAR","setor":"MARKETING","salario":1650},{"nome":"SAMIRA DE CASSIA DA SILVA PIRES","setor":"EXPEDIÇÃO","salario":1650},{"nome":"SAMUEL OLIVEIRA SIMOES FILHO","setor":"EXPEDIÇÃO","salario":1943.08},{"nome":"STHEFANI GUIMARAES SILVA","setor":"MARKETING","salario":3513.37},{"nome":"SUANE GINO DA SILVA","setor":"EXPEDIÇÃO","salario":3622.5},{"nome":"SUELLEN MARIA DOMINGUEZ CUNHA","setor":"MARKETING","salario":4347},{"nome":"SUSYANE MONTEIRO DO NASCIMENTO","setor":"COMERCIAL","salario":6313.5},{"nome":"TALITA PRAIA MIYACHI","setor":"LOJA","salario":1650},{"nome":"THALITA DUARTE DE SOUZA","setor":"LOJA","salario":1650},{"nome":"THIAGO ANTHONY RODRIGUES MONTEIRO","setor":"ESTOQUE","salario":810.5},{"nome":"THIAGO QUEIROZ PANTOJA","setor":"LOJA","salario":1650},{"nome":"VINICIUS AMANCIO DA SILVA","setor":"ESTOQUE","salario":1650},{"nome":"VITOR DE SOUZA MARTINS","setor":"LOJA","salario":1650},{"nome":"WEMESON NOGUEIRA DA SILVA","setor":"EXPEDIÇÃO","salario":2031.56}];
+
+// ===== STATE =====
+let base = [], merged = [], chartInst = null, editIdx = null;
+
+function loadBase() {
+  try {
+    const saved = localStorage.getItem('rymo_base');
+    base = saved ? JSON.parse(saved) : JSON.parse(JSON.stringify(BASE_INICIAL));
+  } catch(e) {
+    base = JSON.parse(JSON.stringify(BASE_INICIAL));
+  }
+  saveBase();
+  atualizarStatusBase();
+}
+function saveBase() {
+  localStorage.setItem('rymo_base', JSON.stringify(base));
+  atualizarStatusBase();
+  renderTabela();
+}
+function atualizarStatusBase() {
+  document.getElementById('stBase').textContent = '🗄 Base: ' + base.length + ' funcionários';
+}
+
+// ===== UTILS =====
+function norm(s){return(s||'').toUpperCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ');}
+function parseHHMM(s){
+  if(!s||!s.trim())return null;
+  const neg=s.trim().startsWith('-');
+  const p=s.trim().replace('-','').split(':');
+  if(p.length<2||isNaN(parseInt(p[0])))return null;
+  return(neg?-1:1)*(parseInt(p[0])*60+parseInt(p[1]));
+}
+function fmtHHMM(m){
+  if(m===null||m===undefined)return'—';
+  const neg=m<0,a=Math.abs(m);
+  return(neg?'-':'')+String(Math.floor(a/60)).padStart(2,'0')+':'+String(a%60).padStart(2,'0');
+}
+function fmtBRL(v){return'R$ '+Math.abs(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});}
+function calcCusto(saldo,sal){
+  if(!sal||saldo===null)return 0;
+  const h=Math.abs(saldo)/60,b=sal/220;
+  return saldo>0?b*1.5*h:b*h;
+}
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2500);
+}
+
+// ===== TABS =====
+function switchTab(id,btn){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  btn.classList.add('active');
+  if(id==='p3')renderTabela();
+}
+
+// ===== PDF =====
+async function handlePDF(input){
+  const file=input.files[0];if(!file)return;
+  document.getElementById('stPDF').textContent='📄 Lendo PDF...';
+  document.getElementById('uploadLabel').textContent='Aguarde...';
+  try{
+    const buf=await file.arrayBuffer();
+    const pdf=await pdfjsLib.getDocument({data:buf}).promise;
+    const allLines=[];
+    for(let i=1;i<=pdf.numPages;i++){
+      const pg=await pdf.getPage(i);
+      const tc=await pg.getTextContent();
+      const byY={};
+      for(const item of tc.items){
+        const y=Math.round(item.transform[5]);
+        if(!byY[y])byY[y]=[];
+        byY[y].push({x:item.transform[4],str:item.str});
+      }
+      const ys=Object.keys(byY).map(Number).sort((a,b)=>b-a);
+      for(const y of ys){
+        const line=byY[y].sort((a,b)=>a.x-b.x).map(s=>s.str).join(' ').trim();
+        if(line)allLines.push(line);
+      }
+    }
+    const pm=allLines.find(l=>/DE\s+\d{2}\/\d{2}\/\d{4}\s+AT/i.test(l));
+    if(pm){const m=pm.match(/DE\s+(\d{2}\/\d{2}\/\d{4})\s+AT[EÉ]\s+(\d{2}\/\d{2}\/\d{4})/i);if(m)document.getElementById('periodoLabel').textContent=m[1]+' a '+m[2];}
+    const pdfData=parseLinesControlID(allLines);
+    document.getElementById('uploadLabel').textContent=file.name;
+    document.getElementById('uploadBadge').style.display='inline-flex';
+    document.getElementById('uploadBadgeText').textContent=pdfData.length+' funcionários';
+    document.getElementById('stPDF').textContent='📄 PDF: '+pdfData.length+' registros';
+    processar(pdfData);
+  }catch(e){
+    document.getElementById('stPDF').textContent='📄 Erro ao ler PDF';
+    document.getElementById('uploadLabel').textContent='Erro — tente novamente';
+  }
+}
+
+function parseLinesControlID(lines){
+  const result=[];
+  const timeRe=/^(-?\d{1,3}:\d{2})$/;
+  const skipWords=['NOME DO FUNCIONÁRIO','NOME DO DEPARTAMENTO','BANCO SALDO','Extrato','por Período','TOTAL:','Emitido','Control'];
+  const knownDepts=['ESTOQUE','LOJA','EXPEDICAO','EXPEDIÇÃO','COMERCIAL','ADMINISTRATIVO','COMPRAS','FINANCEIRO','T.I','TI','CONTROLADORIA','RECURSOS HUMANOS','SERVIÇOS OPERACIONAIS','DIRETORIA COMERCIAL','TECNOLOGIA DA INFORMAÇÃO','MARKETING','ESTAGIO','APRENDIZ'];
+  for(const line of lines){
+    if(!line||line.length<3)continue;
+    if(skipWords.some(s=>line.includes(s)))continue;
+    if(/^\d{2}\/\d{2}\/\d{4}/.test(line)||/^DE\s+\d/.test(line))continue;
+    const parts=line.split(/\s+/);
+    let timeStr=null,timeIdx=-1;
+    for(let i=parts.length-1;i>=0;i--){if(timeRe.test(parts[i])){timeStr=parts[i];timeIdx=i;break;}}
+    let nameParts=[],dept='';
+    const checkParts=timeIdx>=0?parts.slice(0,timeIdx):parts;
+    for(const w of checkParts){
+      const wu=norm(w);
+      if(knownDepts.some(d=>norm(d)===wu)){dept=w;}
+      else{nameParts.push(w);}
+    }
+    const nome=nameParts.join(' ').trim();
+    if(!nome||nome.length<3)continue;
+    if(/^\d/.test(nome))continue;
+    result.push({nome,deptPDF:dept,saldo:timeStr?parseHHMM(timeStr):null});
+  }
+  return result;
+}
+
+function processar(pdfData){
+  const noMatch=[];
+  merged=pdfData.map(p=>{
+    const pn=norm(p.nome);
+    const b=base.find(b=>{
+      const bn=norm(b.nome);
+      return bn===pn||bn===pn.substring(0,bn.length)||pn===bn.substring(0,pn.length);
+    });
+    if(!b&&p.saldo!==null)noMatch.push(p.nome);
+    const sal=b?b.salario:0;
+    const setor=b?b.setor:(p.deptPDF||'');
+    return{...p,salario:sal,setor,custo:calcCusto(p.saldo,sal),matched:!!b};
+  });
+  const box=document.getElementById('noMatchBox');
+  if(noMatch.length){box.style.display='block';document.getElementById('noMatchList').innerHTML=noMatch.map(n=>`<li>${n}</li>`).join('');}
+  else{box.style.display='none';}
+  const setores=[...new Set(merged.map(m=>m.setor).filter(Boolean))].sort();
+  const sel=document.getElementById('setorFilter');
+  sel.innerHTML='<option value="">Todos</option>'+setores.map(s=>`<option value="${s}">${s}</option>`).join('');
+  document.getElementById('stReg').textContent='Cruzados: '+merged.filter(m=>m.matched).length+'/'+merged.length;
+  renderChart();renderTops();
+}
+
+function getFiltered(){
+  const s=document.getElementById('setorFilter').value;
+  return s?merged.filter(m=>m.setor===s):merged;
+}
+
+function updateKPIs(d){
+  const pos=d.filter(m=>m.saldo>0),neg=d.filter(m=>m.saldo<0);
+  const cp=pos.reduce((a,m)=>a+m.custo,0),cn=neg.reduce((a,m)=>a+m.custo,0);
+  document.getElementById('kFuncs').textContent=d.length;
+  document.getElementById('kPos').textContent=pos.length;
+  document.getElementById('kNeg').textContent=neg.length;
+  document.getElementById('kCPos').textContent=fmtBRL(cp);
+  document.getElementById('kCNeg').textContent=fmtBRL(cn);
+  document.getElementById('kCTotal').textContent=fmtBRL(cp-cn);
+  document.getElementById('kCTotal2').textContent=fmtBRL(cp-cn);
+  const s=[...d].filter(m=>m.saldo!==null).sort((a,b)=>b.saldo-a.saldo);
+  document.getElementById('kMaxP').textContent=s.length&&s[0].saldo>0?fmtHHMM(s[0].saldo):'—';
+  const sn=[...s].reverse();
+  document.getElementById('kMaxN').textContent=sn.length&&sn[0].saldo<0?fmtHHMM(sn[0].saldo):'—';
+}
+
+function renderChart(){
+  const d=getFiltered().filter(m=>m.saldo!==null).sort((a,b)=>b.saldo-a.saldo);
+  updateKPIs(d);
+  const wrap=document.getElementById('chartWrap');
+  if(!d.length){wrap.innerHTML='<div class="empty-state">Sem dados para exibir</div>';return;}
+  const h=Math.max(320,d.length*30+80);
+  wrap.innerHTML=`<canvas id="mc"></canvas>`;wrap.style.height=h+'px';
+  if(chartInst)chartInst.destroy();
+  const vals=d.map(m=>parseFloat((m.saldo/60).toFixed(2)));
+  chartInst=new Chart(document.getElementById('mc'),{
+    type:'bar',
+    data:{labels:d.map(m=>m.nome.split(' ').slice(0,2).join(' ')),datasets:[{data:vals,backgroundColor:d.map(m=>m.saldo>=0?'#F5C518':'#e05252'),borderRadius:3,borderSkipped:false}]},
+    options:{
+      indexAxis:'y',responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>' '+fmtHHMM(Math.round(ctx.raw*60))}}},
+      scales:{x:{ticks:{color:'#666',font:{size:10},callback:v=>v+'h'},grid:{color:'#1e1e1e'},border:{color:'#2a2a2a'}},y:{ticks:{color:'#bbb',font:{size:10}},grid:{display:false},border:{color:'#2a2a2a'}}},
+      animation:{onComplete:function(){
+        const ch=this,ctx=ch.ctx;
+        ctx.save();ctx.font='500 10px system-ui,sans-serif';ctx.textBaseline='middle';
+        ch.data.datasets.forEach((ds,di)=>{
+          const meta=ch.getDatasetMeta(di);
+          meta.data.forEach((bar,i)=>{
+            const v=ds.data[i],pos=v>=0;
+            ctx.textAlign=pos?'left':'right';ctx.fillStyle=pos?'#F5C518':'#e05252';
+            ctx.fillText(fmtHHMM(d[i].saldo),pos?bar.x+4:bar.x-4,bar.y);
+          });
+        });
+        ctx.restore();
+      }}
+    }
+  });
+}
+
+function renderTops(){
+  const all=merged.filter(m=>m.saldo!==null);
+  const tp=[...all].filter(m=>m.saldo>0).sort((a,b)=>b.saldo-a.saldo).slice(0,10);
+  const tn=[...all].filter(m=>m.saldo<0).sort((a,b)=>a.saldo-b.saldo).slice(0,10);
+  const tc=[...all].sort((a,b)=>b.custo-a.custo).slice(0,10);
+  function li(arr,vFn,cls){
+    if(!arr.length)return'<div class="empty-state" style="padding:12px 0">Sem dados</div>';
+    return arr.map((it,i)=>`<div class="top-item"><span class="top-rank">${i+1}</span><span class="top-name" title="${it.nome}">${it.nome.split(' ').slice(0,2).join(' ')}</span><span class="top-setor">${it.setor||''}</span><span class="top-val ${cls}">${vFn(it)}</span></div>`).join('');
+  }
+  document.getElementById('topsGrid').innerHTML=`
+    <div class="top-card"><div class="top-card-title">Top 10 — bancos positivos</div>${li(tp,it=>fmtHHMM(it.saldo),'tv-p')}</div>
+    <div class="top-card"><div class="top-card-title">Top 10 — bancos negativos</div>${li(tn,it=>fmtHHMM(it.saldo),'tv-n')}</div>
+    <div class="top-card"><div class="top-card-title">Top 10 — maiores custos</div>${li(tc,it=>fmtBRL(it.custo),'tv-c')}</div>
+  `;
+}
+
+// ===== CADASTRO =====
+function renderTabela(){
+  const busca=norm(document.getElementById('searchInput').value);
+  const setor=document.getElementById('searchSetor').value;
+  const filtrado=base.filter(f=>{
+    const matchNome=!busca||norm(f.nome).includes(busca);
+    const matchSetor=!setor||f.setor===setor;
+    return matchNome&&matchSetor;
+  }).sort((a,b)=>a.nome.localeCompare(b.nome));
+  document.getElementById('cadCount').textContent=base.length+' funcionários';
+  const setores=[...new Set(base.map(f=>f.setor).filter(Boolean))].sort();
+  const selSetor=document.getElementById('searchSetor');
+  const curSetor=selSetor.value;
+  selSetor.innerHTML='<option value="">Todos os setores</option>'+setores.map(s=>`<option value="${s}"${s===curSetor?' selected':''}>${s}</option>`).join('');
+  const dl=document.getElementById('setorList');
+  dl.innerHTML=setores.map(s=>`<option value="${s}">`).join('');
+  const tbody=document.getElementById('cadTableBody');
+  if(!filtrado.length){tbody.innerHTML='<tr><td colspan="4" style="text-align:center;color:var(--rm);padding:24px">Nenhum funcionário encontrado</td></tr>';return;}
+  tbody.innerHTML=filtrado.map(f=>{
+    const idx=base.findIndex(b=>b.nome===f.nome);
+    return`<tr>
+      <td>${f.nome}</td>
+      <td><span class="td-set">${f.setor}</span></td>
+      <td class="td-sal">${fmtBRL(f.salario)}</td>
+      <td>
+        <button class="btn-edit" onclick="editarFuncionario(${idx})">Editar</button>
+        <button class="btn-del" onclick="excluirFuncionario(${idx})">Excluir</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function openModal(idx=null){
+  editIdx=idx;
+  document.getElementById('modalTitle').textContent=idx!==null?'Editar funcionário':'Adicionar funcionário';
+  document.getElementById('fNome').value=idx!==null?base[idx].nome:'';
+  document.getElementById('fSetor').value=idx!==null?base[idx].setor:'';
+  document.getElementById('fSalario').value=idx!==null?base[idx].salario:'';
+  document.querySelectorAll('.form-err').forEach(e=>{e.style.display='none';});
+  document.querySelectorAll('.form-input').forEach(e=>{e.classList.remove('error');});
+  document.getElementById('modalOverlay').classList.add('open');
+  document.getElementById('fNome').focus();
+}
+function closeModal(){document.getElementById('modalOverlay').classList.remove('open');editIdx=null;}
+
+function editarFuncionario(idx){openModal(idx);}
+
+function excluirFuncionario(idx){
+  if(!confirm('Excluir "'+base[idx].nome+'" da base?'))return;
+  base.splice(idx,1);
+  saveBase();
+  showToast('Funcionário excluído');
+}
+
+function salvarFuncionario(){
+  let ok=true;
+  const nome=document.getElementById('fNome').value.trim().toUpperCase();
+  const setor=document.getElementById('fSetor').value.trim().toUpperCase();
+  const salario=parseFloat(document.getElementById('fSalario').value);
+  if(!nome){document.getElementById('errNome').style.display='block';document.getElementById('fNome').classList.add('error');ok=false;}
+  else{document.getElementById('errNome').style.display='none';document.getElementById('fNome').classList.remove('error');}
+  if(!setor){document.getElementById('errSetor').style.display='block';document.getElementById('fSetor').classList.add('error');ok=false;}
+  else{document.getElementById('errSetor').style.display='none';document.getElementById('fSetor').classList.remove('error');}
+  if(!salario||salario<=0){document.getElementById('errSalario').style.display='block';document.getElementById('fSalario').classList.add('error');ok=false;}
+  else{document.getElementById('errSalario').style.display='none';document.getElementById('fSalario').classList.remove('error');}
+  if(!ok)return;
+  if(editIdx!==null){base[editIdx]={nome,setor,salario};showToast('Funcionário atualizado');}
+  else{base.push({nome,setor,salario});showToast('Funcionário adicionado');}
+  saveBase();closeModal();
+}
+
+document.getElementById('modalOverlay').addEventListener('click',function(e){if(e.target===this)closeModal();});
+document.addEventListener('keydown',function(e){if(e.key==='Escape')closeModal();});
+
+function loadDemo(){
+  const demo=[
+    {nome:'CARLOS FELIPE PIMENTEL DA SILVA',deptPDF:'',saldo:1935},{nome:'ADRIANO DE SOUZA SANTOS',deptPDF:'',saldo:1398},
+    {nome:'LUCIANA APARECIDA BASTOS ALBUQUERQUE',deptPDF:'',saldo:1170},{nome:'FRANCIONE BARBOSA COITINHO',deptPDF:'',saldo:1162},
+    {nome:'SUANE GINO DA SILVA',deptPDF:'',saldo:1509},{nome:'SUELLEN MARIA DOMINGUEZ CUNHA',deptPDF:'',saldo:1573},
+    {nome:'JEANE PARENTE DE CASTRO',deptPDF:'',saldo:1151},{nome:'ADAILSON JATAI VALES',deptPDF:'',saldo:802},
+    {nome:'CRISTIANO BRILHANTE DE MEDEIROS',deptPDF:'',saldo:558},{nome:'JEFF CRUZAL AMAZONAS',deptPDF:'',saldo:290},
+    {nome:'GLENDA ESTER BATISTA BRELAZ',deptPDF:'',saldo:-1585},{nome:'ANDERSON MOREIRA MARTINS',deptPDF:'',saldo:-520},
+    {nome:'BRUNA NAIARA SILVA DE OLIVEIRA',deptPDF:'',saldo:-1255},{nome:'HENRY DA COSTA ARAUJO',deptPDF:'',saldo:-2160},
+    {nome:'IVANDRO GARCIA DE MOURA',deptPDF:'',saldo:-773},{nome:'SAMIRA DE CASSIA DA SILVA PIRES',deptPDF:'',saldo:-1120},
+    {nome:'LEANDRO SILVA DOS REIS',deptPDF:'',saldo:-1106},{nome:'JOAO LUIZ TEIXEIRA DA SILVA',deptPDF:'',saldo:-803},
+  ];
+  document.getElementById('periodoLabel').textContent='01/05/2026 a 31/05/2026';
+  document.getElementById('uploadBadge').style.display='inline-flex';
+  document.getElementById('uploadBadgeText').textContent='demo';
+  document.getElementById('stPDF').textContent='📄 PDF: demo';
+  processar(demo);
+}
+
+// Init
+loadBase();
+</script>
+</body>
+</html>
